@@ -13,6 +13,7 @@ git add .
 git commit -m "commit name"
 git branch -M main
 git remote
+git push -u origin main
 
 git clone ...
 
