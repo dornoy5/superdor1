@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products Section</title>
+
+    <!-- External CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="./css/styles.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+    <!-- Shopping Cart Sidebar -->
+    <div id="cartSidebar" class="cart-sidebar">
+        <div class="cart-header">
+            <h5 class="cart-title">Shopping Cart</h5>
+            <button onclick="toggleCart()" class="btn-close"></button>
+        </div>
+        <div class="cart-body" id="cartContents">
+            <!-- Cart contents will be loaded here dynamically -->
+        </div>
+        <div class="cart-footer">
+            <button type="button" class="btn btn-danger" onclick="clearCart()">Clear Cart</button>
+            <button type="button" class="btn btn-secondary" onclick="toggleCart()">Close</button>
+            <button type="button" class="btn btn-primary checkout-button" onclick="checkout()">Checkout</button>
+        </div>
+    </div>
+
+    <!-- View Cart Button -->
+    <button id="cartButton" class="btn btn-primary" onclick="toggleCart()">View Cart</button>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Categories</a>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav" id="categoriesNav">
+                    <!-- Categories will be loaded here dynamically -->
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent" style="padding-top: 60px;">
+        <!-- Added inline padding to account for fixed navbar -->
+        <div id='display'></div>
+    </div>
+
+    <!-- Include Axios and Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.1.2/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom Script -->
+    <script>
+        const cart = [];
+        const MY_SERVER = 'http://127.0.0.1:8000';
+
+        // Function to load categories from the server
+        const categories = async () => {
+            try {
+                const response = await axios.get(`${MY_SERVER}/category`);
+                const categories = response.data;
+                const categoriesNav = document.getElementById('categoriesNav');
+                categoriesNav.innerHTML = categories.map((category) => `
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-category-id="${category.id}">${category.description}</a>
+                    </li>
+                `).join('');
+
+                // Add click event listener for each category link
+                document.querySelectorAll('#categoriesNav .nav-link').forEach(link => {
+                    link.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        const categoryId = this.getAttribute('data-category-id');
+                        findProducts(categoryId);
+                    });
+                });
+
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+            }
+        };
+
+        // Function to find products based on category
+        const findProducts = async (categoryId) => {
+            try {
+                const response = await axios.get(`${MY_SERVER}/products/${categoryId}`);
+                const products = response.data;
+                const display = document.getElementById('display');
+                display.innerHTML = ''; // Clear display first
+                products.forEach((product) => {
+                    const productContainer = document.createElement('div');
+                    productContainer.className = 'product-container';
+                    productContainer.innerHTML = `
+                        <h5>${product.description}</h5>
+                        <p>${product.price} ש"ח</p>
+                        <img src="${MY_SERVER}${product.img}" alt="${product.description}"  style="max-width: 100%; height: auto;">
+                        <div class="cart-options">
+                            <input type="number" min="1" value="1" id="quantity_${product.id}" class="quantity-input">
+                            <button id="addToCartBtn_${product.id}">Add to Cart</button>
+                        </div>
+                    `;
+                    display.appendChild(productContainer);
+
+                    // Add click event listener for add to cart button
+                    const btn = document.getElementById(`addToCartBtn_${product.id}`);
+                    btn.addEventListener('click', () => {
+                        const quantity = document.getElementById(`quantity_${product.id}`).value;
+                        addToCart(product, quantity);
+                    });
+                });
+            } catch (error) {
+                console.error('Error fetching products for category:', error);
+            }
+        };
+
+
+        // Function to add items to cart
+        const addToCart = (product, quantity) => {
+            quantity = Number(quantity);
+            const cartItem = cart.find(p => p.product.id === product.id);
+            if (cartItem) {
+                cartItem.quantity += quantity;
+            } else {
+                cart.push({
+                    product: {
+                        id: product.id,
+                        description: product.description,
+                        price: product.price,
+                        category: product.category,
+                        img: product.img
+                    },
+                    quantity: quantity
+                });
+            }
+            updateCartContents();
+        };
+        const clearCart = () => {
+            cart.length = 0;
+            updateCartContents();
+        };
+
+        const updateCartContents = () => {
+            const cartContents = document.getElementById('cartContents');
+            cartContents.innerHTML = cart.map(item => `
+        <div class="cart-item">
+            <img src="${MY_SERVER}${item.product.img}" alt="${item.product.description}">
+            <div>
+                <p>Name: ${item.product.description}</p>
+                <p>Price: ${item.product.price} ש"ח</p>
+                <p>Quantity: ${item.quantity}</p>
+                <select id="removeQuantity${item.product.id}" class="form-select form-select-sm" style="width: 80px; display: inline-block;">
+                    ${Array.from({ length: item.quantity }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('')}
+                </select>
+                <button class="btn btn-danger btn-sm" onclick='removeFromCart(${item.product.id}, document.getElementById("removeQuantity${item.product.id}").value)'>Remove</button>
+            </div>
+        </div>
+    `).join('');
+        };
+
+        const removeFromCart = (productId, quantityToRemove) => {
+            const cartItemIndex = cart.findIndex(p => p.product.id === productId);
+            if (cartItemIndex > -1) {
+                const cartItem = cart[cartItemIndex];
+                cartItem.quantity -= Number(quantityToRemove);
+                if (cartItem.quantity <= 0) {
+                    cart.splice(cartItemIndex, 1);
+                }
+                updateCartContents();
+            }
+        };
+
+        const toggleCart = () => {
+            const cartSidebar = document.getElementById('cartSidebar');
+            const cartButton = document.getElementById('cartButton');
+            const mainContent = document.getElementById('mainContent');
+
+            cartSidebar.classList.toggle('open');
+            mainContent.classList.toggle('sidebar-open');
+            // If the cart is open, hide the cart button, otherwise show it
+            if (cartSidebar.classList.contains('open')) {
+                cartButton.classList.add('hidden');
+            } else {
+                cartButton.classList.remove('hidden');
+            }
+        };
+
+
+        const checkout = () => {
+            if (confirm("Are you sure you want to proceed to checkout?")) {
+                window.location.href = 'login.html';
+            }
+        };
+
+        // Initial call to load categories
+        categories();
+    </script>
+</body>
+
+</html>

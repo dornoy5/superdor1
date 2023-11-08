@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+    <!-- External CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="./css/styles.css" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <h2>Register</h2>
+                <form id="registrationForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Register</button>
+                </form>
+                <div id="messageContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Axios and Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.1.2/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const MY_SERVER = 'http://127.0.0.1:8000'; // Make sure this is your correct server address
+
+        document.getElementById('registrationForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const messageContainer = document.getElementById('messageContainer');
+
+            // Clear previous messages
+            messageContainer.innerHTML = '';
+
+            if (password !== confirmPassword) {
+                messageContainer.innerHTML = '<p class="text-danger">Passwords do not match.</p>';
+                return;
+            }
+
+            try {
+                const response = await axios.post(`${MY_SERVER}/register`, {
+                    username: username,
+                    password: password
+                });
+
+                if (response.data.isSuperuser) {
+                    messageContainer.innerHTML = '<p class="text-success">Superuser created successfully! Logging in...</p>';
+                } else {
+                    messageContainer.innerHTML = '<p class="text-success">User created successfully! Logging in...</p>';
+                }
+
+                // Call the login function after a short delay to allow the user to see the success message
+                setTimeout(() => {
+                    login(username, password);
+                }, 1000);
+            
+            } catch (error) {
+            if (error.response) {
+                if (error.response.status === 500) {
+                    messageContainer.innerHTML = '<p class="text-danger">Username already exists, please try another one.</p>';
+                } else {
+                    messageContainer.innerHTML = '<p class="text-danger">Registration error, please try again.</p>';
+                }
+            } else {
+                messageContainer.innerHTML = '<p class="text-danger">There was a problem reaching the server, please check your connection.</p>';
+            }
+        }
+        });
+
+        async function login(username, password) {
+            try {
+                const res = await axios.post(`${MY_SERVER}/login/`, {
+                    username: username,
+                    password: password
+                });
+                // Assuming the token is returned in the response data
+                localStorage.setItem('token', res.data.token); // Save the token in local storage
+                if (window.top) {
+                    window.top.location.href = 'home.html';
+                } else {
+                    window.location.href = 'home.html'; // Redirect to the home page or dashboard
+                }
+            } catch (error) {
+                // Handle login error
+                document.getElementById('messageContainer').innerHTML = '<p class="text-danger">Login failed, please try again later.</p>';
+            }
+        }
+    </script>
+</body>
+
+</html>
